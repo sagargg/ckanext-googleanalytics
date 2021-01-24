@@ -1,6 +1,6 @@
 from __future__ import absolute_import
-import re
 import logging
+from . import extract_table_names
 from ckan.lib.base import BaseController, c, render, request
 from . import dbutil
 
@@ -80,7 +80,7 @@ class GAApiController(ApiController):
                                 'package_update', 'datastore_create']
 
         resource_level_action = ['resource_create', 'resource_show', 'resource_patch', 'resource_update',
-                                 'datastore_search',  'datastore_create', 'datastore_upsert', 
+                                 'datastore_search',  'datastore_create', 'datastore_upsert',
                                  'datastore_search_sql', 'datastore_delete']
 
         if(request_obj_type in package_level_action and not resource_id):
@@ -105,25 +105,23 @@ class GAApiController(ApiController):
                 request_id = resource_id
 
             if request_obj_type == "datastore_search_sql":
-                # TODO: create a regix  filter table name 
-                pass
-            else:
-                resource = logic.get_action('resource_show')(
-                    dict(context, return_type='dict'), {"id": request_id})
+                # extract resource_id from sql statement
+                tables = extract_table_names.extract_tables(id)
+                request_id = tables[0]
 
-                pkg = logic.get_action('package_show')(
-                    dict(context, return_type='dict'), {'id': resource['package_id']})
+            resource = logic.get_action('resource_show')(
+                dict(context, return_type='dict'), {"id": request_id})
 
-                data_dict.update({
-                    "cd1": pkg["organization"]["name"],
-                    "cd2": pkg["name"],
-                    "cd3": resource["name"]
-                })
+            pkg = logic.get_action('package_show')(
+                dict(context, return_type='dict'), {'id': resource['package_id']})
 
+            data_dict.update({
+                "cd1": pkg["organization"]["name"],
+                "cd2": pkg["name"],
+                "cd3": resource["name"]
+            })
 
         return data_dict
-
-
 
     def action(self, logic_function, ver=None):
         try:
