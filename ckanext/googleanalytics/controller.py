@@ -1,5 +1,5 @@
 from __future__ import absolute_import
-
+import re
 import logging
 from ckan.lib.base import BaseController, c, render, request
 from . import dbutil
@@ -24,7 +24,6 @@ else:
 
 import ckan.model as model
 from ckan.common import _, c, request, response
-
 log = logging.getLogger("ckanext.googleanalytics")
 
 
@@ -38,9 +37,11 @@ class GAController(BaseController):
 class GAApiController(ApiController):
     # intercept API calls to record via google analytics
     def _post_analytics(
-        self, user, request_obj_type, request_function, request_id
+        self, user, request_obj_type, request_function, ids
     ):
         if config.get("googleanalytics.id"):
+            id = ids[0] if isinstance(ids, list) else ids
+            id = id if id else ""
             data_dict = {
                 "v": 1,
                 "tid": config.get("googleanalytics.id"),
@@ -52,47 +53,77 @@ class GAApiController(ApiController):
                 "dr": c.environ.get("HTTP_REFERER", ""),
                 "ec": "CKAN API Request",
                 "ea": request_obj_type + request_function,
-                "el": request_id,
+                "el": id
             }
-            context = {'model': model, 'session': model.Session, 'user': c.user,
-                       'api_version': None, 'auth_user_obj': c.userobj}
- 
-            
-            '''
-            Send GA custom dimension parameter to generate better report. 
-                "cd1" : Organization Name 
-                "cd2" : Package Name
-                "cd3" : Resource Name
-            '''
-            package_level_action = ['package_show', 'package_patch', 'package_update'
-                                    'datastore_search',
-                                    ]
 
-            resource_level_action = ['resource_show', 'resource_patch', 'resource_update',
-                                     'datastore_search', ' datastore_search_sql',
-                                     ]
+            params_dict = self._ga_prepare_parameter(
+                request_obj_type, request_function, ids)
+            data_dict.update(params_dict)
+            plugin.GoogleAnalyticsPlugin.analytics_queue.put(data_dict)
 
-            if not request_id:
-                request_id = {}
+    def _ga_prepare_parameter(self, request_obj_type, request_function, ids):
+        '''
+          Send GA custom dimension parameter to generate better report.
+              "cd1" : Organization Name
+              "cd2" : Package Name
+              "cd3" : Resource Name
+        '''
+        data_dict = {}
+        context = {'model': model, 'session': model.Session, 'user': c.user,
+                   'api_version': None, 'auth_user_obj': c.userobj}
+
+        id = ids[0]
+        resource_id = ids[1]
+        package_id = ids[2]
+
+        package_level_action = ['package_show', 'package_create', 'package_patch',
+                                'package_update', 'datastore_create']
+
+        resource_level_action = ['resource_create', 'resource_show', 'resource_patch', 'resource_update',
+                                 'datastore_search',  'datastore_create', 'datastore_upsert', 
+                                 'datastore_search_sql', 'datastore_delete']
+
+        if(request_obj_type in package_level_action and not resource_id):
+            if id:
+                request_id = id
             else:
-                request_id = {"id": request_id}
+                request_id = package_id
 
-            if(request_obj_type in package_level_action):
-                pkg = logic.get_action(request_obj_type)(dict(context, return_type='dict'), request_id)
-                data_dict.update({
-                    "cd1": pkg["organization"]["name"],
-                    "cd2": pkg["name"]
-                })
-            if(request_obj_type in resource_level_action):
-                resource = logic.get_action('resource_show')(dict(context, return_type='dict'), request_id)
+            pkg = logic.get_action("package_show")(
+                dict(context, return_type="dict"), {"id": request_id})
+
+            data_dict.update({
+                "cd1": pkg["organization"]["name"],
+                "cd2": pkg["name"]
+            })
+
+
+        if(request_obj_type in resource_level_action):
+            if id:
+                request_id = id
+            else:
+                request_id = resource_id
+
+            if request_obj_type == "datastore_search_sql":
+                # TODO: create a regix  filter table name 
+                pass
+            else:
+                resource = logic.get_action('resource_show')(
+                    dict(context, return_type='dict'), {"id": request_id})
+
                 pkg = logic.get_action('package_show')(
                     dict(context, return_type='dict'), {'id': resource['package_id']})
+
                 data_dict.update({
                     "cd1": pkg["organization"]["name"],
                     "cd2": pkg["name"],
                     "cd3": resource["name"]
-                })   
-            plugin.GoogleAnalyticsPlugin.analytics_queue.put(data_dict)
+                })
+
+
+        return data_dict
+
+
 
     def action(self, logic_function, ver=None):
         try:
@@ -102,16 +133,19 @@ class GAApiController(ApiController):
                 try_url_params=side_effect_free
             )
             if isinstance(request_data, dict):
-                if request_data.get("id", False):
-                    id = request_data.get("id")
-                else: 
-                    id = request_data.get("resource_id")
+                id = request_data.get("id", False)
+                resource_id = request_data.get("resource_id", False)
+                package_id = request_data.get("resource", {}).get("package_id", False)
+                package_id = request_data.get("package_id", package_id)
 
                 if "q" in request_data:
                     id = request_data["q"]
+                if "sql" in request_data:
+                    id = request_data["sql"]
                 if "query" in request_data:
                     id = request_data["query"]
-                self._post_analytics(c.user, logic_function, "", id)
+                self._post_analytics(c.user, logic_function, "", [
+                                     id, resource_id, package_id])
         except Exception as e:
             log.debug(e)
             pass
