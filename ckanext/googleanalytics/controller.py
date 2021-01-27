@@ -56,6 +56,9 @@ class GAApiController(ApiController):
                 "el": id,
                 "uip": c.environ["REMOTE_ADDR"]
             }
+            log.info("=================GA=======================+>")
+            log.info(c.environ)
+            log.info("========================================+>")
 
             params_dict = self._ga_prepare_parameter(
                 request_obj_type, request_function, ids)
