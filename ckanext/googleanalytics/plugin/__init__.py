@@ -44,7 +44,7 @@ class AnalyticsPostThread(threading.Thread):
             data_dict = self.queue.get()
 
             data = urlencode(data_dict)
-            log.debug("Sending API event to Google Analytics: " + data)
+            log.info("Sending API event to Google Analytics: " + data)
             # send analytics
             res = requests.post(
                 "http://www.google-analytics.com/collect", data,
