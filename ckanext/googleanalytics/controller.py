@@ -53,7 +53,8 @@ class GAApiController(ApiController):
                 "dr": c.environ.get("HTTP_REFERER", ""),
                 "ec": "CKAN API Request",
                 "ea": request_obj_type + request_function,
-                "el": id
+                "el": id,
+                "uip": c.environ["REMOTE_ADDR"]
             }
 
             params_dict = self._ga_prepare_parameter(
