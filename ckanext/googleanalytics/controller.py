@@ -54,12 +54,14 @@ class GAApiController(ApiController):
                 "ec": "CKAN API Request",
                 "ea": request_obj_type + request_function,
                 "el": id,
-                "uip": c.environ["REMOTE_ADDR"]
             }
-            log.info("=================GA=======================+>")
-            log.info(c.environ)
-            log.info("========================================+>")
 
+            # overide the event category if request call is internal
+            if c.environ.get("HTTP_INTERNAL_CALL", '') == "frontend":
+                data_dict.update({
+                    "ec":  "Frontend to CKAN API Request"
+                })
+                
             params_dict = self._ga_prepare_parameter(
                 request_obj_type, request_function, ids)
             data_dict.update(params_dict)
