@@ -23,7 +23,7 @@ else:
     from builtins import str
 
 import ckan.model as model
-from ckan.common import _, c, request, response
+
 log = logging.getLogger("ckanext.googleanalytics")
 
 
@@ -55,9 +55,8 @@ class GAApiController(ApiController):
                 "ea": request_obj_type + request_function,
                 "el": id,
             }
-            log.info("=================GA=======================+>")
-            log.info(c.environ)
-            log.warn(c.environ.get("HTTP_INTERNAL_CALL", ''))
+            log.info("=================GA Debug===============+>")
+            log.info(request.headers)
             log.info("========================================+>")
 
             # overide the event category if request call is internal
