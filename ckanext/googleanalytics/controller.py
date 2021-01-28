@@ -55,12 +55,11 @@ class GAApiController(ApiController):
                 "ea": request_obj_type + request_function,
                 "el": id,
             }
-            log.info("=================GA Debug===============+>")
-            log.info(request.headers)
-            log.info("========================================+>")
-
             # overide the event category if request call is internal
-            if c.environ.get("HTTP_INTERNAL_CALL", '') == "frontend":
+            custom_user_agent = ("frontend-v2/latest", "data-explorer/next-gen", "data-subscription/latest" ) 
+          
+            if request.headers.get("User-Agent", '').startswith(custom_user_agent) \
+              or (request.headers.get("REQUEST_CALL", '') in ["internal"]):  
                 data_dict.update({
                     "ec":  "Frontend to CKAN API Request"
                 })
