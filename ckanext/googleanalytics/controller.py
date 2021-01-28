@@ -57,7 +57,9 @@ class GAApiController(ApiController):
             }
             # overide the event category if request call is internal
             custom_user_agent = ("frontend-v2/latest", "data-explorer/next-gen", "data-subscription/latest" ) 
-          
+            log.info("======================GA Debug===================>")
+            log.info(request.headers)
+            log.info("=================================================>")
             if request.headers.get("User-Agent", '').startswith(custom_user_agent) \
               or (request.headers.get("REQUEST_CALL", '') in ["internal"]):  
                 data_dict.update({
