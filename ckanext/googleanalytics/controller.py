@@ -51,21 +51,25 @@ class GAApiController(ApiController):
                 "dh": c.environ["HTTP_HOST"],
                 "dp": c.environ["PATH_INFO"],
                 "dr": c.environ.get("HTTP_REFERER", ""),
-                "ec": "CKAN API Request",
+                "ec": "Regular CKAN API Request",
                 "ea": request_obj_type + request_function,
                 "el": id,
             }
             # overide the event category if request call is internal
-            custom_user_agent = ("frontend-v2/latest", "data-explorer/next-gen", "data-subscription/latest" ) 
             log.info("======================GA Debug===================>")
             log.info(request.headers)
             log.info("=================================================>")
-            if request.headers.get("User-Agent", '').startswith(custom_user_agent) \
-              or (request.headers.get("REQUEST_CALL", '') in ["internal"]):  
+            if request.headers.get("User-Agent", '').startswith(("frontend-v2/latest", "data-explorer/next-gen")) \
+              or (request.headers.get("Request-Source", '') in ["data-explorer"]):  
                 data_dict.update({
-                    "ec":  "Frontend to CKAN API Request"
+                    "ec":  "Frontend/Data Explorer CKAN API Request"
                 })
                 
+            if request.headers.get("User-Agent", '').startswith(("data-subscription/latest")):
+                data_dict.update({
+                    "ec":  "Data Subscription CKAN API Request"
+                })
+
             params_dict = self._ga_prepare_parameter(
                 request_obj_type, request_function, ids)
             data_dict.update(params_dict)
